@@ -3053,7 +3053,7 @@ public class HystrixCommandTest extends CommonHystrixCommandTests<TestHystrixCom
             @Override
             protected Boolean run() {
                 try {
-                    Thread.sleep(100);
+                    Thread.sleep(500);
                     return true;
                 } catch (InterruptedException ex) {
                     throw new RuntimeException(ex);
@@ -3095,6 +3095,7 @@ public class HystrixCommandTest extends CommonHystrixCommandTests<TestHystrixCom
             Thread.sleep(10);
             s.unsubscribe();
             assertTrue(latch.await(200, TimeUnit.MILLISECONDS));
+            System.out.println("ReqLog : " + HystrixRequestLog.getCurrentRequest().getExecutedCommandsAsString());
             assertEquals("Number of execution semaphores in use", 0, cmd.getExecutionSemaphore().getNumberOfPermitsUsed());
             assertEquals("Number of fallback semaphores in use", 0, cmd.getFallbackSemaphore().getNumberOfPermitsUsed());
             assertFalse(cmd.isExecutionComplete());
@@ -3105,7 +3106,6 @@ public class HystrixCommandTest extends CommonHystrixCommandTests<TestHystrixCom
             assertFalse(cmd.isSuccessfulExecution());
             assertCommandExecutionEvents(cmd, HystrixEventType.CANCELLED);
             assertEquals(0, cmd.metrics.getCurrentConcurrentExecutionCount());
-            System.out.println("ReqLog : " + HystrixRequestLog.getCurrentRequest().getExecutedCommandsAsString());
             assertSaneHystrixRequestLog(1);
         } catch (InterruptedException ex) {
             ex.printStackTrace();
@@ -3114,8 +3114,6 @@ public class HystrixCommandTest extends CommonHystrixCommandTests<TestHystrixCom
 
     @Test
     public void testEarlyUnsubscribeDuringExecutionViaObserve() {
-        final AtomicBoolean hystrixThreadStartedExecuting = new AtomicBoolean(false);
-
         class AsyncCommand extends HystrixCommand<Boolean> {
 
             public AsyncCommand() {
@@ -3125,8 +3123,7 @@ public class HystrixCommandTest extends CommonHystrixCommandTests<TestHystrixCom
             @Override
             protected Boolean run() {
                 try {
-                    hystrixThreadStartedExecuting.set(true);
-                    Thread.sleep(100);
+                    Thread.sleep(500);
                     return true;
                 } catch (InterruptedException ex) {
                     throw new RuntimeException(ex);
@@ -3168,17 +3165,16 @@ public class HystrixCommandTest extends CommonHystrixCommandTests<TestHystrixCom
             Thread.sleep(10);
             s.unsubscribe();
             assertTrue(latch.await(200, TimeUnit.MILLISECONDS));
+            System.out.println("ReqLog : " + HystrixRequestLog.getCurrentRequest().getExecutedCommandsAsString());
             assertEquals("Number of execution semaphores in use", 0, cmd.getExecutionSemaphore().getNumberOfPermitsUsed());
             assertEquals("Number of fallback semaphores in use", 0, cmd.getFallbackSemaphore().getNumberOfPermitsUsed());
             assertFalse(cmd.isExecutionComplete());
-            assertEquals(hystrixThreadStartedExecuting.get(), cmd.isExecutedInThread());
             assertEquals(null, cmd.getFailedExecutionException());
             assertNull(cmd.getExecutionException());
             assertTrue(cmd.getExecutionTimeInMilliseconds() > -1);
             assertFalse(cmd.isSuccessfulExecution());
             assertCommandExecutionEvents(cmd, HystrixEventType.CANCELLED);
             assertEquals(0, cmd.metrics.getCurrentConcurrentExecutionCount());
-            System.out.println("ReqLog : " + HystrixRequestLog.getCurrentRequest().getExecutedCommandsAsString());
             assertSaneHystrixRequestLog(1);
         } catch (InterruptedException ex) {
             ex.printStackTrace();
@@ -3187,8 +3183,6 @@ public class HystrixCommandTest extends CommonHystrixCommandTests<TestHystrixCom
 
     @Test
     public void testEarlyUnsubscribeDuringFallback() {
-        final AtomicBoolean hystrixThreadStartedExecuting = new AtomicBoolean(false);
-
         class AsyncCommand extends HystrixCommand<Boolean> {
 
             public AsyncCommand() {
@@ -3203,8 +3197,7 @@ public class HystrixCommandTest extends CommonHystrixCommandTests<TestHystrixCom
             @Override
             protected Boolean getFallback() {
                 try {
-                    hystrixThreadStartedExecuting.set(true);
-                    Thread.sleep(100);
+                    Thread.sleep(500);
                     return false;
                 } catch (InterruptedException ex) {
                     throw new RuntimeException(ex);
@@ -3251,7 +3244,6 @@ public class HystrixCommandTest extends CommonHystrixCommandTests<TestHystrixCom
             assertEquals("Number of fallback semaphores in use", 0, cmd.getFallbackSemaphore().getNumberOfPermitsUsed());
             assertEquals(0, cmd.metrics.getCurrentConcurrentExecutionCount());
             assertFalse(cmd.isExecutionComplete());
-            assertEquals(hystrixThreadStartedExecuting.get(), cmd.isExecutedInThread());
         } catch (InterruptedException ex) {
             ex.printStackTrace();
         }
@@ -3325,8 +3317,8 @@ public class HystrixCommandTest extends CommonHystrixCommandTests<TestHystrixCom
 
         try {
             fromCacheSubscription.unsubscribe();
-            assertTrue(fromCacheLatch.await(200, TimeUnit.MILLISECONDS));
-            assertTrue(originalLatch.await(200, TimeUnit.MILLISECONDS));
+            assertTrue(fromCacheLatch.await(600, TimeUnit.MILLISECONDS));
+            assertTrue(originalLatch.await(600, TimeUnit.MILLISECONDS));
             assertEquals("Number of execution semaphores in use (original)", 0, original.getExecutionSemaphore().getNumberOfPermitsUsed());
             assertEquals("Number of fallback semaphores in use (original)", 0, original.getFallbackSemaphore().getNumberOfPermitsUsed());
             assertTrue(original.isExecutionComplete());
@@ -3428,8 +3420,8 @@ public class HystrixCommandTest extends CommonHystrixCommandTests<TestHystrixCom
         try {
             Thread.sleep(10);
             originalSubscription.unsubscribe();
-            assertTrue(originalLatch.await(200, TimeUnit.MILLISECONDS));
-            assertTrue(fromCacheLatch.await(200, TimeUnit.MILLISECONDS));
+            assertTrue(originalLatch.await(600, TimeUnit.MILLISECONDS));
+            assertTrue(fromCacheLatch.await(600, TimeUnit.MILLISECONDS));
             assertEquals("Number of execution semaphores in use (original)", 0, original.getExecutionSemaphore().getNumberOfPermitsUsed());
             assertEquals("Number of fallback semaphores in use (original)", 0, original.getFallbackSemaphore().getNumberOfPermitsUsed());
             assertFalse(original.isExecutionComplete());
@@ -3562,9 +3554,11 @@ public class HystrixCommandTest extends CommonHystrixCommandTests<TestHystrixCom
             originalSubscription.unsubscribe();
             //fromCache1Subscription.unsubscribe();
             fromCache2Subscription.unsubscribe();
-            assertTrue(originalLatch.await(200, TimeUnit.MILLISECONDS));
-            assertTrue(fromCache1Latch.await(200, TimeUnit.MILLISECONDS));
-            assertTrue(fromCache2Latch.await(200, TimeUnit.MILLISECONDS));
+            assertTrue(originalLatch.await(600, TimeUnit.MILLISECONDS));
+            assertTrue(fromCache1Latch.await(600, TimeUnit.MILLISECONDS));
+            assertTrue(fromCache2Latch.await(600, TimeUnit.MILLISECONDS));
+            System.out.println("ReqLog : " + HystrixRequestLog.getCurrentRequest().getExecutedCommandsAsString());
+
             assertEquals("Number of execution semaphores in use (original)", 0, original.getExecutionSemaphore().getNumberOfPermitsUsed());
             assertEquals("Number of fallback semaphores in use (original)", 0, original.getFallbackSemaphore().getNumberOfPermitsUsed());
             assertFalse(original.isExecutionComplete());
@@ -3604,7 +3598,6 @@ public class HystrixCommandTest extends CommonHystrixCommandTests<TestHystrixCom
             assertNull(fromCache2Value.get());
             assertEquals(0, fromCache2.metrics.getCurrentConcurrentExecutionCount());
 
-            System.out.println("ReqLog : " + HystrixRequestLog.getCurrentRequest().getExecutedCommandsAsString());
             assertSaneHystrixRequestLog(3);
         } catch (InterruptedException ex) {
             ex.printStackTrace();
@@ -3708,6 +3701,8 @@ public class HystrixCommandTest extends CommonHystrixCommandTests<TestHystrixCom
             assertTrue(originalLatch.await(200, TimeUnit.MILLISECONDS));
             assertTrue(fromCache1Latch.await(200, TimeUnit.MILLISECONDS));
             assertTrue(fromCache2Latch.await(200, TimeUnit.MILLISECONDS));
+            System.out.println("ReqLog : " + HystrixRequestLog.getCurrentRequest().getExecutedCommandsAsString());
+
             assertEquals("Number of execution semaphores in use (original)", 0, original.getExecutionSemaphore().getNumberOfPermitsUsed());
             assertEquals("Number of fallback semaphores in use (original)", 0, original.getFallbackSemaphore().getNumberOfPermitsUsed());
             assertFalse(original.isExecutionComplete());
@@ -3748,7 +3743,6 @@ public class HystrixCommandTest extends CommonHystrixCommandTests<TestHystrixCom
             assertFalse(fromCache2.isSuccessfulExecution());
             assertEquals(0, fromCache2.metrics.getCurrentConcurrentExecutionCount());
 
-            System.out.println("ReqLog : " + HystrixRequestLog.getCurrentRequest().getExecutedCommandsAsString());
             assertSaneHystrixRequestLog(3);
         } catch (InterruptedException ex) {
             ex.printStackTrace();
@@ -5341,7 +5335,7 @@ public class HystrixCommandTest extends CommonHystrixCommandTests<TestHystrixCom
         @Override
         protected Boolean run() {
             try {
-                Thread.sleep(100);
+                Thread.sleep(500);
                 return true;
             } catch (InterruptedException ex) {
                 cancelled.set(true);
