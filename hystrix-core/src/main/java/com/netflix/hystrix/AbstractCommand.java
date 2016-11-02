@@ -1552,7 +1552,16 @@ import java.util.concurrent.atomic.AtomicReference;
         }
         // if we have an exception we know about we'll throw it directly without the wrapper exception
         if (e.getCause() instanceof HystrixRuntimeException) {
-            return (HystrixRuntimeException) e.getCause();
+			HystrixRuntimeException hre = (HystrixRuntimeException) e.getCause();
+			if (hre.getFallbackException() != null) {
+				if (hre.getFallbackException().getCause() != null) {
+					if (hre.getFallbackException().getCause().getCause() instanceof RuntimeException) {
+						// return exception thrown in fallback logic
+						return (RuntimeException) hre.getFallbackException().getCause().getCause();
+					}
+				}
+			}
+			return (HystrixRuntimeException) e.getCause();
         }
         // we don't know what kind of exception this is so create a generic message and throw a new HystrixRuntimeException
         String message = getLogMessagePrefix() + " failed while executing.";
