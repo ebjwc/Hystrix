@@ -42,6 +42,9 @@ public abstract class HystrixSampleSseServlet extends HttpServlet {
 
     private final int pausePollerThreadDelayInMs;
 
+    /* response is not thread-safe */
+    private final Object responseWriteLock = new Object();
+
     /* Set to true upon shutdown, so it's OK to be shared among all SampleSseServlets */
     private static volatile boolean isDestroyed = false;
 
@@ -146,12 +149,15 @@ public abstract class HystrixSampleSseServlet extends HttpServlet {
                             @Override
                             public void onNext(String sampleDataAsString) {
                                 if (sampleDataAsString != null) {
-                                    writer.print("data: " + sampleDataAsString + "\n\n");
-                                    // explicitly check for client disconnect - PrintWriter does not throw exceptions
-                                    if (writer.checkError()) {
-                                        moreDataWillBeSent.set(false);
+                                    // avoid concurrent writes with ping
+                                    synchronized (responseWriteLock) {
+                                        writer.print("data: " + sampleDataAsString + "\n\n");
+                                        // explicitly check for client disconnect - PrintWriter does not throw exceptions
+                                        if (writer.checkError()) {
+                                            moreDataWillBeSent.set(false);
+                                        }
+                                        writer.flush();
                                     }
-                                    writer.flush();
                                 }
                             }
                         });
@@ -160,12 +166,17 @@ public abstract class HystrixSampleSseServlet extends HttpServlet {
                     try {
                         Thread.sleep(pausePollerThreadDelayInMs);
                         //in case stream has not started emitting yet, catch any clients which connect/disconnect before emits start
-                        writer.print("ping: \n\n");
-                        // explicitly check for client disconnect - PrintWriter does not throw exceptions
-                        if (writer.checkError()) {
-                            moreDataWillBeSent.set(false);
+
+
+                        // avoid concurrent writes with sample
+                        synchronized (responseWriteLock) {
+                            writer.print("ping: \n\n");
+                            // explicitly check for client disconnect - PrintWriter does not throw exceptions
+                            if (writer.checkError()) {
+                                moreDataWillBeSent.set(false);
+                           }
+                           writer.flush();
                         }
-                        writer.flush();
                     } catch (InterruptedException e) {
                         moreDataWillBeSent.set(false);
                     }
